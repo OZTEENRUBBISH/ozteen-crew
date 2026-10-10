@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>OzTeen Crew</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ===================== LOGIN SCREENS ===================== -->
+<div id="auth" class="auth" hidden>
+  <aside class="auth-side">
+    <div class="brand light"><b>OzTeen</b><span>Crew board</span></div>
+    <div class="auth-pitch">
+      <h1>Your jobs, your shifts, one place.</h1>
+      <p>Check what's booked this week, set when you can work, and add photos from the job site.</p>
+    </div>
+    <p class="auth-foot">Staff only. Accounts are set up by OzTeen.</p>
+  </aside>
+  <main class="auth-main">
+    <div class="brand mobile-only"><b>OzTeen</b><span>Crew board</span></div>
+
+    <form id="signinForm" class="auth-card" data-view="signin">
+      <h2>Sign in</h2>
+      <p class="muted">Use the email and password OzTeen gave you.</p>
+      <label for="si-email">Email<input id="si-email" type="email" autocomplete="username" required></label>
+      <label for="si-pass"><span class="lab-row">Password <button type="button" class="link" data-go="forgot">Forgot password?</button></span>
+        <input id="si-pass" type="password" autocomplete="current-password" required></label>
+      <p class="form-error" id="si-error" hidden></p>
+      <button class="btn big" type="submit" id="si-btn">Sign in</button>
+      <p class="muted center">New to the crew? Ask Max or Nick to set up your account.</p>
+    </form>
+
+    <form id="forgotForm" class="auth-card" data-view="forgot" hidden>
+      <h2>Reset your password</h2>
+      <p class="muted">Enter your email and we'll send you a link to set a new password.</p>
+      <label for="fp-email">Email<input id="fp-email" type="email" autocomplete="username" required></label>
+      <p class="form-error" id="fp-error" hidden></p>
+      <button class="btn big" type="submit" id="fp-btn">Send reset link</button>
+      <button type="button" class="link center" data-go="signin">← Back to sign in</button>
+    </form>
+
+    <div class="auth-card" data-view="sent" hidden>
+      <div class="badge-ic" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16v12H4z"/><path d="M4 7l8 6 8-6"/></svg></div>
+      <h2>Check your email</h2>
+      <p class="muted">If <b id="sent-email"></b> has a crew account, a reset link is on its way. Nothing after a few minutes? Check your junk folder, or ask Max or Nick.</p>
+      <button type="button" class="link" data-go="signin">← Back to sign in</button>
+    </div>
+
+    <form id="setpwForm" class="auth-card" data-view="setpw" hidden>
+      <h2 id="setpw-title">Set your password</h2>
+      <p class="muted" id="setpw-sub">Choose a password only you know. You'll use it to sign in from now on.</p>
+      <label for="sp-name">Your name<input id="sp-name" autocomplete="name" required placeholder="e.g. Jack"></label>
+      <label for="sp-pass">New password<input id="sp-pass" type="password" autocomplete="new-password" minlength="8" required></label>
+      <label for="sp-pass2">Type it again<input id="sp-pass2" type="password" autocomplete="new-password" minlength="8" required></label>
+      <p class="hint">At least 8 characters.</p>
+      <p class="form-error" id="sp-error" hidden></p>
+      <button class="btn big" type="submit" id="sp-btn">Save and continue</button>
+    </form>
+
+    <div class="auth-card" data-view="blocked" hidden>
+      <h2>No access</h2>
+      <p class="muted" id="blocked-msg">Your crew account has been switched off. Ask Max or Nick if you think this is a mistake.</p>
+      <button class="btn ghost" type="button" data-signout>Sign out</button>
+    </div>
+
+    <div class="auth-card" data-view="loading" hidden>
+      <p class="muted">Loading…</p>
+    </div>
+  </main>
+</div>
+
+<!-- ===================== APP ===================== -->
+<div id="app" hidden>
+<div class="wrap">
+  <header>
+    <div class="brand"><b>OzTeen</b><span>Crew board</span></div>
+    <div class="me"><span id="meChip"></span><button class="btn ghost small" type="button" data-signout>Sign out</button></div>
+  </header>
+  <nav role="tablist" id="tabs">
+    <button role="tab" aria-selected="true" data-v="jobs">Jobs calendar</button>
+    <button role="tab" aria-selected="false" data-v="avail">My availability</button>
+    <button role="tab" aria-selected="false" data-v="team">Team availability</button>
+    <button role="tab" aria-selected="false" data-v="up">Upcoming jobs</button>
+    <button role="tab" aria-selected="false" data-v="admin" id="adminTab" hidden>Team accounts</button>
+  </nav>
+
+  <section id="v-jobs">
+    <div class="jobs">
+      <div class="minw0">
+        <div class="calbar">
+          <h2 id="monthLbl">Month</h2>
+          <button class="icon" id="prevM" aria-label="Previous month">‹</button>
+          <button class="btn ghost" id="todayBtn">Today</button>
+          <button class="icon" id="nextM" aria-label="Next month">›</button>
+        </div>
+        <div class="cal">
+          <div class="dow"><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div></div>
+          <div class="grid" id="grid"></div>
+        </div>
+        <div class="legend">
+          <span style="--c:var(--rub)">Rubbish removal</span>
+          <span style="--c:var(--gar)">Gardens &amp; landscaping</span>
+          <span style="--c:var(--pw)">Pressure washing</span>
+        </div>
+        <div class="upnext"><h3>Next 14 days</h3><div class="list" id="upcoming"></div></div>
+      </div>
+      <aside class="panel" id="panel"></aside>
+    </div>
+  </section>
+
+  <section id="v-avail" hidden>
+    <div class="availhead">
+      <div>
+        <h2>When can you work?</h2>
+        <p class="muted nm">Set each day for the next 4 weeks. Changes save automatically.</p>
+      </div>
+      <span class="status" id="saveStatus"></span>
+    </div>
+    <div class="weeks" id="weeks"></div>
+    <div class="notebox">
+      <label for="availNote">Notes for the team (exams, no ute, etc.)
+        <textarea id="availNote" rows="2" placeholder="e.g. Uni exams 3–7 Nov, can only do afternoons"></textarea>
+      </label>
+    </div>
+  </section>
+
+  <section id="v-team" hidden>
+    <div class="calbar">
+      <h2 id="teamLbl">Team</h2>
+      <button class="icon" id="prevT" aria-label="Previous two weeks">‹</button>
+      <button class="icon" id="nextT" aria-label="Next two weeks">›</button>
+    </div>
+    <div class="tscroll" id="teamGrid"></div>
+    <div class="list" id="teamNotes"></div>
+  </section>
+
+  <section id="v-up" hidden>
+    <div class="upbar">
+      <h2>Upcoming jobs</h2>
+      <div class="filters" role="group" aria-label="Filter jobs" id="filters"></div>
+    </div>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <section id="v-admin" hidden>
+    <div class="availhead">
+      <div>
+        <h2>Team accounts</h2>
+        <p class="muted nm">Only owners see this page.</p>
+      </div>
+      <button class="btn" type="button" id="addCrewBtn">+ Add crew member</button>
+    </div>
+    <div class="note" id="addCrewHelp" hidden></div>
+    <div class="note lock">Passwords are stored scrambled, so nobody can see them, including owners. If someone is locked out, send them a reset link, or set a new temporary password for them in Supabase.</div>
+    <div class="tscroll" id="adminTable"></div>
+  </section>
+</div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
