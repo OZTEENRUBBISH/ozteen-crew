@@ -126,8 +126,10 @@ async function handleSession(session){
 function toJob(r){
   return {id:r.id, title:r.title, service:r.service, date:r.start_date, endDate:r.end_date||"",
     time:(r.start_time||"").slice(0,5), endTime:(r.end_time||"").slice(0,5),
-    address:r.address||"", suburb:r.suburb||"", notes:r.notes||"", crew:r.crew||[], createdBy:r.created_by};
+    address:r.address||"", suburb:r.suburb||"", notes:r.notes||"", crew:r.crew||[], createdBy:r.created_by,
+    client:r.client_name||"", price:(r.price===null||r.price===undefined||r.price==="")?null:Number(r.price)};
 }
+const fmtPrice = n => (n===null||n===undefined||isNaN(n)) ? "" : Number(n).toLocaleString("en-AU",{style:"currency",currency:"AUD",minimumFractionDigits:Number(n)%1?2:0,maximumFractionDigits:2});
 async function loadAll(){
   const from=key(addDays(today(),-120)), aFrom=key(addDays(today(),-35)), aTo=key(addDays(today(),70));
   const [p,j,a,ph]=await Promise.all([
@@ -224,7 +226,8 @@ function renderCal(){
 }
 function jobCard(j, withDate){
   return el("div",{class:"job",style:"--c:"+SC[j.service||"Rubbish"]},
-    el("span",{class:"t",text:j.title}),
+    el("span",{class:"t"}, j.title, j.price!==null?el("b",{class:"jprice",text:fmtPrice(j.price)}):null),
+    j.client?el("span",{class:"meta strong",text:j.client}):null,
     el("span",{class:"meta",text:[withDate?whenText(j):(j.time?fmtTime(j.time)+(j.endTime?"–"+fmtTime(j.endTime):""):"Time TBC"), j.suburb, SERVICES[j.service]].filter(Boolean).join(" · ")}),
     j.notes?el("span",{class:"meta",text:j.notes}):null,
     j.crew.length?el("div",{class:"people"}, j.crew.map(c=>personChip(c))):el("span",{class:"meta",text:"No crew assigned yet"}),
@@ -250,7 +253,7 @@ function renderPanel(){
                : el("p",{class:"muted",style:"margin:0;font-size:14px",text:"Nobody has marked themselves available yet."})));
 }
 function jobForm(){
-  const j = S.editing==="new" ? {date:S.sel,endDate:"",time:"08:00",endTime:"12:00",title:"",address:"",suburb:"",service:"Rubbish",crew:[],notes:""} : {...S.jobs.find(x=>x.id===S.editing)};
+  const j = S.editing==="new" ? {date:S.sel,endDate:"",time:"08:00",endTime:"12:00",title:"",client:"",price:null,address:"",suburb:"",service:"Rubbish",crew:[],notes:""} : {...S.jobs.find(x=>x.id===S.editing)};
   const crewBox=el("div",{class:"crewpick"});
   const drawCrew=date=>{
     crewBox.replaceChildren();
@@ -261,8 +264,12 @@ function jobForm(){
     el("h2",{text:S.editing==="new"?"New job":"Edit job"}),
     el("label",{for:"f-title"},"Job",el("input",{id:"f-title",required:true,value:j.title,placeholder:"e.g. Garage clear-out (All in One Trip)"})),
     el("div",{class:"row2"},
+      el("label",{for:"f-client"},"Client name",el("input",{id:"f-client",value:j.client||"",list:"f-clients",autocomplete:"off",placeholder:"e.g. Jason Miller"}),
+        el("datalist",{id:"f-clients"},(window.BIZ&&BIZ.clientNames?BIZ.clientNames():[]).map(n=>el("option",{value:n})))),
+      el("label",{for:"f-price"},"Quote price ($)",el("input",{id:"f-price",type:"number",step:"0.01",min:"0",inputmode:"decimal",value:j.price===null?"":String(j.price),placeholder:"0.00"}))),
+    el("div",{class:"row2"},
       el("label",{for:"f-date"},"Start date",el("input",{id:"f-date",type:"date",required:true,value:j.date,onchange:e=>drawCrew(e.target.value)})),
-      el("label",{for:"f-end"},"End date (if multi-day)",el("input",{id:"f-end",type:"date",value:j.endDate}))),
+      el("label",{for:"f-end",title:"Only for jobs over more than one day"},"End date",el("input",{id:"f-end",type:"date",value:j.endDate}))),
     el("div",{class:"row2"},
       el("label",{for:"f-time"},"Start time",el("input",{id:"f-time",type:"time",value:j.time})),
       el("label",{for:"f-etime"},"Finish time",el("input",{id:"f-etime",type:"time",value:j.endTime}))),
@@ -280,6 +287,7 @@ function jobForm(){
     const row={ title:$("#f-title").value.trim(), service:$("#f-service").value, start_date:sd, end_date:(ed&&ed>sd)?ed:null,
       start_time:$("#f-time").value||null, end_time:$("#f-etime").value||null,
       address:$("#f-address").value.trim(), suburb:$("#f-suburb").value.trim(), notes:$("#f-notes").value.trim(),
+      client_name:$("#f-client").value.trim(), price:$("#f-price").value===""?null:Math.round(parseFloat($("#f-price").value)*100)/100,
       crew:[...crewBox.querySelectorAll("input:checked")].map(i=>i.value), updated_at:new Date().toISOString() };
     busy($("#f-save"),true,"Saving…");
     const res = S.editing==="new" ? await sb.from("jobs").insert({...row, created_by:S.uid}) : await sb.from("jobs").update(row).eq("id",S.editing);
@@ -302,7 +310,7 @@ function renderUpcoming(){
   const t=key(today()), e=key(addDays(today(),13));
   const js=S.jobs.filter(j=>endOf(j)>=t&&j.date<=e).sort((a,b)=>(a.date+(a.time||"")).localeCompare(b.date+(b.time||"")));
   const box=$("#upcoming"); box.replaceChildren();
-  box.append(js.length? js.map(j=>jobCard(j,true)) : el("div",{class:"empty",text:isOwner()?"No jobs in the next two weeks. Pick a day on the calendar and tap “Add job”.":"No jobs booked in the next two weeks yet."}));
+  box.append(...(js.length? js.map(j=>jobCard(j,true)) : [el("div",{class:"empty",text:isOwner()?"No jobs in the next two weeks. Pick a day on the calendar and tap “Add job”.":"No jobs booked in the next two weeks yet."})]));
 }
 
 /* ---------------- my availability ---------------- */
@@ -393,7 +401,10 @@ function renderCards(){
         ph.length&&ph[0].url?el("img",{src:ph[0].url,alt:"",loading:"lazy"}):null,
         el("span",{class:"svc",text:SERVICES[j.service]||"Job"}),
         ph.length?el("span",{class:"count",text:ph.length+" photo"+(ph.length===1?"":"s")}):null),
-      el("span",{class:"ct",text:j.title}),
+      el("span",{class:"cline"},
+        el("span",{class:"ct",text:j.title}),
+        el("span",{class:"cprice"+(j.price===null?" none":""),text:j.price===null?"No price":fmtPrice(j.price)})),
+      j.client?el("span",{class:"cclient",text:j.client}):null,
       el("span",{class:"cd",text:whenText(j)+(j.suburb?" · "+j.suburb:"")})));
     if(openIdx>=0 && (i===js.length-1 || (i+1)%cols===0) && Math.floor(openIdx/cols)===Math.floor(i/cols)) box.append(detailView(js[openIdx]));
   });
@@ -417,6 +428,8 @@ function detailView(j){
         el("button",{class:"icon","aria-label":"Close details",text:"✕",onclick:()=>{S.openJob=null; renderCards();}}))),
     el("div",{class:"dcol"},
       el("dl",{class:"facts"},
+        el("dt",{text:"Quote"}), el("dd",{class:"dprice",text:j.price===null?"Not set":fmtPrice(j.price)}),
+        el("dt",{text:"Client"}), el("dd",{text:j.client||"Not set"}),
         el("dt",{text:"When"}), el("dd",{text:whenText(j)}),
         el("dt",{text:"Location"}), el("dd",{}, loc||"Not set", mapUrl?el("div",{},el("a",{href:mapUrl,target:"_blank",rel:"noopener",text:"Open in Google Maps ↗"})):null),
         el("dt",{text:"Expected"}), el("dd",{text:expected}),

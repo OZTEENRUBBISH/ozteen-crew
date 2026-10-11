@@ -4,6 +4,10 @@
 -- (setup.sql must already have been run. Safe to run again.)
 -- =============================================================
 
+-- ---------- Calendar jobs: client name and quote price ----------
+alter table public.jobs add column if not exists client_name text not null default '';
+alter table public.jobs add column if not exists price numeric(10,2);
+
 -- ---------- Clients & leads ----------
 create table if not exists public.clients (
   id uuid primary key default gen_random_uuid(),

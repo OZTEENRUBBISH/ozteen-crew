@@ -196,14 +196,17 @@
         <button class="btn" type="button" id="newEntryBtn">+ New job</button>
       </div>
     </div>
+    <p class="tilenote" id="tileNote">All services</p>
     <div class="tiles" id="profitTiles"></div>
     <div id="entryForm"></div>
     <div class="toolbar">
       <input type="search" id="acctSearch" placeholder="Search client, job #, notes…" aria-label="Search jobs">
+      <select id="acctService" aria-label="Service"></select>
       <select id="acctPeriod" aria-label="Period"></select>
       <select id="acctCash" aria-label="Payment">
         <option value="all">Cash and non-cash</option><option value="cash">Cash only</option><option value="noncash">Non-cash only</option>
       </select>
+      <select id="acctSort" aria-label="Sort by"></select>
     </div>
     <div class="tscroll"><table class="ledger" id="ledger"></table></div>
   </section>

@@ -65,7 +65,7 @@ function renderClients(){
   const q=lc($("#clientSearch").value), stage=st.value||"open", tk=key(today());
   let list=B.clients.filter(c=>c.kind===B.clientKind);
   if(B.clientKind==="lead") list=list.filter(c=> stage==="all"?true: stage==="open"? ["new","contacted","quoted"].includes(c.stage) : c.stage===stage);
-  if(q) list=list.filter(c=>[c.name,c.phone,c.email,c.suburb,c.address,c.notes,c.source].some(v=>lc(v).includes(q)));
+  if(q) list=list.filter(c=>[c.name,c.phone,c.suburb,c.address,c.notes,c.source].some(v=>lc(v).includes(q)));
   if(B.clientKind==="lead") list.sort((a,b)=>(a.follow_up||"9999").localeCompare(b.follow_up||"9999")||b.created_at.localeCompare(a.created_at));
 
   renderClientForm();
@@ -84,7 +84,6 @@ function renderClients(){
           c.service?el("span",{class:"tag svc-"+c.service,text:(SERVICE_OPTS.find(o=>o[0]===c.service)||["",c.service])[1]}):null),
         el("div",{class:"cmeta"},
           c.phone?el("a",{href:"tel:"+c.phone.replace(/\s/g,""),text:c.phone}):null,
-          c.email?el("a",{href:"mailto:"+c.email,text:c.email}):null,
           [c.address,c.suburb].filter(Boolean).length?el("span",{text:[c.address,c.suburb].filter(Boolean).join(", ")}):null,
           c.source?el("span",{text:"via "+c.source}):null),
         s&&s.count?el("div",{class:"cstat",text:s.count+" job"+(s.count===1?"":"s")+" · "+money(s.total,0)+" total · last "+shortDate(s.last)}):null,
@@ -114,7 +113,6 @@ function renderClientForm(){
     el("div",{class:"grid3"},
       field("Name *", inp("c-name",c.name,{required:true,autocomplete:"off"})),
       field("Phone", inp("c-phone",c.phone,{type:"tel",autocomplete:"off"})),
-      field("Email", inp("c-email",c.email,{type:"email",autocomplete:"off"})),
       field("Address", inp("c-address",c.address,{autocomplete:"off"})),
       field("Suburb", inp("c-suburb",c.suburb,{autocomplete:"off"})),
       field("Service", sel("c-service",SERVICE_OPTS,c.service)),
@@ -129,7 +127,7 @@ function renderClientForm(){
   f.addEventListener("submit",async e=>{
     e.preventDefault();
     const row={kind:$("#c-kind").value, stage:$("#c-stage").value, name:$("#c-name").value.trim(), phone:$("#c-phone").value.trim(),
-      email:$("#c-email").value.trim(), address:$("#c-address").value.trim(), suburb:$("#c-suburb").value.trim(),
+      address:$("#c-address").value.trim(), suburb:$("#c-suburb").value.trim(),
       service:$("#c-service").value, source:$("#c-source").value, notes:$("#c-notes").value.trim(),
       follow_up:$("#c-follow").value||null, updated_at:new Date().toISOString()};
     if(!row.name) return toast("Add a name first.");
@@ -180,17 +178,23 @@ const fyLabel = off => { const s=addMonths(fyStart(today()),off*12); return "FY 
 function sumRows(rows){
   return rows.reduce((t,r)=>{ t.rev+=num(r.quote); t.tip+=num(r.tip_fees); t.oth+=num(r.other_costs); t.profit+=num(r.quote)-num(r.tip_fees)-num(r.other_costs); if(r.cash) t.cash+=num(r.quote); t.n++; return t; },{rev:0,tip:0,oth:0,profit:0,cash:0,n:0});
 }
+const ACCT_SVC = {Rubbish:"Rubbish removal",Gardens:"Gardens & landscaping",Pressure:"Pressure washing",Other:"Other"};
+const svcPill = v => el("span",{class:"svcpill sp-"+(ACCT_SVC[v]?v:"Other"),text:ACCT_SVC[v]||"Other"});
+const svcFilter = () => ($("#acctService")&&$("#acctService").value)||"all";
 function renderTiles(){
   const tiles=[["week","Past week"],["month","Past month"],["3m","Past 3 months"],["year","Past year"],["all","All time"]];
+  const sv=svcFilter(), base=B.accounts.filter(r=>sv==="all"||r.service===sv);
+  $("#tileNote").textContent = sv==="all" ? "All services" : "Showing "+ACCT_SVC[sv]+" only";
+  $("#tileNote").classList.toggle("on", sv!=="all");
   $("#profitTiles").replaceChildren(...tiles.map(([p,label])=>{
-    const [a,b]=periodRange(p), t=sumRows(B.accounts.filter(r=>r.job_date>=a&&r.job_date<=b));
+    const [a,b]=periodRange(p), t=sumRows(base.filter(r=>r.job_date>=a&&r.job_date<=b));
     return el("div",{class:"tile"+(p==="all"?" total":"")},
       el("span",{class:"tl",text:label}),
       el("b",{class:"tv"+(t.profit<0?" neg":""),text:money(t.profit,0)}),
       el("span",{class:"ts",text:"profit · "+t.n+" job"+(t.n===1?"":"s")}),
       el("span",{class:"ts",text:"Revenue "+money(t.rev,0)}),
       el("span",{class:"ts",text:"Cash "+money(t.cash,0)+" · Other "+money(t.rev-t.cash,0)}),
-      p!=="all"?el("span",{class:"td",text:shortDate(a)+" – "+shortDate(b)}):el("span",{class:"td",text:B.accounts.length?"Since "+shortDate(B.accounts.map(r=>r.job_date).sort()[0]):"No jobs yet"}));
+      p!=="all"?el("span",{class:"td",text:shortDate(a)+" – "+shortDate(b)}):el("span",{class:"td",text:base.length?"Since "+shortDate(base.map(r=>r.job_date).sort()[0]):"No jobs yet"}));
   }));
 }
 function nextJobNo(){ return B.accounts.reduce((m,r)=>Math.max(m,r.job_no||0),0)+1; }
@@ -256,36 +260,53 @@ async function toggleCash(r,box){
   r.cash=box.checked; renderTiles(); renderLedger();
 }
 function filteredLedger(){
-  const q=lc($("#acctSearch").value), [a,b]=periodRange($("#acctPeriod").value||"all"), cash=$("#acctCash").value;
+  const q=lc($("#acctSearch").value), [a,b]=periodRange($("#acctPeriod").value||"all"), cash=$("#acctCash").value, sv=svcFilter(), so=$("#acctSort").value||"new";
+  const newest=(x,y)=>y.job_date.localeCompare(x.job_date)||(y.job_no-x.job_no);
+  const profit=r=>num(r.quote)-num(r.tip_fees)-num(r.other_costs);
+  const sorters={
+    new:newest,
+    old:(x,y)=>-newest(x,y),
+    service:(x,y)=>(ACCT_SVC[x.service]||"Other").localeCompare(ACCT_SVC[y.service]||"Other")||newest(x,y),
+    profit:(x,y)=>profit(y)-profit(x)||newest(x,y),
+    quote:(x,y)=>num(y.quote)-num(x.quote)||newest(x,y),
+    jobno:(x,y)=>y.job_no-x.job_no,
+  };
   return B.accounts.filter(r=>r.job_date>=a&&r.job_date<=b)
+    .filter(r=>sv==="all"||r.service===sv)
     .filter(r=>cash==="all"||(cash==="cash"?r.cash:!r.cash))
-    .filter(r=>!q||[r.job_no,r.client_name,r.description,r.notes].some(v=>lc(v).includes(q)))
-    .sort((x,y)=>y.job_date.localeCompare(x.job_date)||(y.job_no-x.job_no));
+    .filter(r=>!q||[r.job_no,r.client_name,r.description,r.notes,ACCT_SVC[r.service]].some(v=>lc(v).includes(q)))
+    .sort(sorters[so]||newest);
 }
 function renderLedger(){
   const rows=filteredLedger(), t=sumRows(rows), tbl=$("#ledger");
-  const head=["Job #","Date","Client","Job","Quote","Tip fees","Other costs","Profit","Cash",""];
+  const head=["Job #","Date","Service","Client","Job","Quote","Tip fees","Other costs","Profit","Cash",""];
   tbl.replaceChildren(
-    el("thead",{},el("tr",{},head.map((h,i)=>el("th",{class:i>=4&&i<=7?"r":(i===8?"c":""),text:h})))),
+    el("thead",{},el("tr",{},head.map((h,i)=>el("th",{class:i>=5&&i<=8?"r":(i===9?"c":""),text:h})))),
     el("tbody",{}, rows.length? rows.map(r=>{
       const p=num(r.quote)-num(r.tip_fees)-num(r.other_costs);
       const box=el("input",{type:"checkbox",checked:!!r.cash,"aria-label":"Paid in cash, job "+r.job_no,onchange:e=>toggleCash(r,e.target)});
       return el("tr",{},
         el("td",{class:"mono",text:"#"+r.job_no}), el("td",{class:"nowrap",text:shortDate(r.job_date)}),
+        el("td",{},svcPill(r.service)),
         el("td",{text:r.client_name||"—"}), el("td",{class:"desc",title:r.notes||"",text:r.description||"—"}),
         el("td",{class:"r",text:money(r.quote)}), el("td",{class:"r",text:money(r.tip_fees)}), el("td",{class:"r",text:money(r.other_costs)}),
         el("td",{class:"r b"+(p<0?" neg":""),text:money(p)}),
         el("td",{class:"c"},box),
         el("td",{}, el("button",{class:"btn ghost small",type:"button",text:"Edit",onclick:()=>{ B.entryEdit=r.id; renderEntryForm(); scrollTo0("#entryForm"); }})));
-    }) : el("tr",{},el("td",{colspan:"10",class:"empty",text:B.accounts.length?"No jobs match these filters.":"No jobs yet. Tap “+ New job” to add your first."}))),
+    }) : el("tr",{},el("td",{colspan:"11",class:"empty",text:B.accounts.length?"No jobs match these filters.":"No jobs yet. Tap “+ New job” to add your first."}))),
     el("tfoot",{},el("tr",{},
-      el("td",{colspan:"4",text:t.n+" job"+(t.n===1?"":"s")+" shown"}),
+      el("td",{colspan:"5",text:t.n+" job"+(t.n===1?"":"s")+" shown"}),
       el("td",{class:"r",text:money(t.rev)}), el("td",{class:"r",text:money(t.tip)}), el("td",{class:"r",text:money(t.oth)}),
       el("td",{class:"r b"+(t.profit<0?" neg":""),text:money(t.profit)}),
       el("td",{class:"c",text:money(t.cash,0)}), el("td",{}))));
 }
 function renderAccounts(){
   const ps=$("#acctPeriod");
+  if(!$("#acctService").options.length){
+    $("#acctService").append(el("option",{value:"all"},"All services"), ...Object.entries(ACCT_SVC).map(([v,t])=>el("option",{value:v},t)));
+    [["new","Newest first"],["old","Oldest first"],["service","By service"],["profit","Highest profit"],["quote","Highest quote"],["jobno","Job number"]]
+      .forEach(([v,t])=>$("#acctSort").append(el("option",{value:v},t)));
+  }
   if(!ps.options.length){
     [["all","All time"],["fy","This financial year ("+fyLabel(0)+")"],["lfy","Last financial year ("+fyLabel(-1)+")"],["tm","This month"],["lm","Last month"],["3m","Past 3 months"],["year","Past 12 months"]]
       .forEach(([v,t])=>ps.append(el("option",{value:v},t)));
@@ -293,7 +314,8 @@ function renderAccounts(){
   renderTiles(); renderEntryForm(); renderLedger();
 }
 $("#newEntryBtn").addEventListener("click",()=>{ B.entryEdit="new"; B.entryPrefill=null; renderEntryForm(); scrollTo0("#entryForm"); });
-["#acctSearch","#acctPeriod","#acctCash"].forEach(s=>$(s).addEventListener(s==="#acctSearch"?"input":"change",renderLedger));
+["#acctSearch","#acctPeriod","#acctCash","#acctSort"].forEach(s=>$(s).addEventListener(s==="#acctSearch"?"input":"change",renderLedger));
+$("#acctService").addEventListener("change",()=>{ renderTiles(); renderLedger(); });
 $("#exportCsv").addEventListener("click",()=>{
   const rows=filteredLedger();
   const esc=v=>{ const s=String(v??""); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
@@ -558,9 +580,11 @@ window.BIZ = {
   },
   render(){ renderClients(); renderAccounts(); renderQuoteBar(); },
   onShow(v){ if(v==="quotes") requestAnimationFrame(fitPaper); if(v!=="quotes") $("#qMoreMenu").hidden=true; },
+  clientNames(){ return B.clients.map(c=>c.name); },
   fromCalendarJob(j){
     B.entryEdit="new";
-    B.entryPrefill={job_date:endOf(j), description:j.title+(j.suburb?", "+j.suburb:""), service:j.service||"Rubbish", notes:j.address||""};
+    B.entryPrefill={job_date:endOf(j), description:j.title+(j.suburb?", "+j.suburb:""), service:j.service||"Rubbish", notes:j.address||"",
+      client_name:j.client||"", quote:j.price===null||j.price===undefined?"":j.price};
     show("accounts"); renderAccounts(); scrollTo0("#entryForm");
   },
 };
