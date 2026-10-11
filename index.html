@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex,nofollow">
 <title>OzTeen Crew</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&family=Open+Sans:ital,wght@0,400;0,600;0,700;0,800;1,400;1,600&display=swap">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -86,7 +86,10 @@
     <button role="tab" aria-selected="false" data-v="avail">My availability</button>
     <button role="tab" aria-selected="false" data-v="team">Team availability</button>
     <button role="tab" aria-selected="false" data-v="up">Upcoming jobs</button>
-    <button role="tab" aria-selected="false" data-v="admin" id="adminTab" hidden>Team accounts</button>
+    <button role="tab" aria-selected="false" data-v="clients" data-owner hidden>Clients &amp; leads</button>
+    <button role="tab" aria-selected="false" data-v="accounts" data-owner hidden>Accounts</button>
+    <button role="tab" aria-selected="false" data-v="quotes" data-owner hidden>Quotes</button>
+    <button role="tab" aria-selected="false" data-v="admin" data-owner hidden>Team accounts</button>
   </nav>
 
   <section id="v-jobs">
@@ -159,6 +162,79 @@
     <div class="note lock">Passwords are stored scrambled, so nobody can see them, including owners. If someone is locked out, send them a reset link, or set a new temporary password for them in Supabase.</div>
     <div class="tscroll" id="adminTable"></div>
   </section>
+
+  <!-- ===== Owners only: clients & leads ===== -->
+  <section id="v-clients" hidden>
+    <div class="availhead">
+      <div>
+        <h2>Clients &amp; leads</h2>
+        <p class="muted nm">Past customers and people who've enquired. Only owners see this.</p>
+      </div>
+      <div class="btnrow">
+        <button class="btn ghost" type="button" id="addLeadBtn">+ Add lead</button>
+        <button class="btn" type="button" id="addClientBtn">+ Add client</button>
+      </div>
+    </div>
+    <div class="toolbar">
+      <div class="seg big" role="group" aria-label="Show" id="clientKind"></div>
+      <input type="search" id="clientSearch" placeholder="Search name, phone, suburb…" aria-label="Search clients and leads">
+      <select id="leadStage" aria-label="Lead stage" hidden></select>
+    </div>
+    <div id="clientForm"></div>
+    <div class="rows" id="clientList"></div>
+  </section>
+
+  <!-- ===== Owners only: accounts ===== -->
+  <section id="v-accounts" hidden>
+    <div class="availhead">
+      <div>
+        <h2>Accounts</h2>
+        <p class="muted nm">Profit = Quote − Tip fees − Other costs. Totals update as you add jobs.</p>
+      </div>
+      <div class="btnrow">
+        <button class="btn ghost" type="button" id="exportCsv">Export CSV</button>
+        <button class="btn" type="button" id="newEntryBtn">+ New job</button>
+      </div>
+    </div>
+    <div class="tiles" id="profitTiles"></div>
+    <div id="entryForm"></div>
+    <div class="toolbar">
+      <input type="search" id="acctSearch" placeholder="Search client, job #, notes…" aria-label="Search jobs">
+      <select id="acctPeriod" aria-label="Period"></select>
+      <select id="acctCash" aria-label="Payment">
+        <option value="all">Cash and non-cash</option><option value="cash">Cash only</option><option value="noncash">Non-cash only</option>
+      </select>
+    </div>
+    <div class="tscroll"><table class="ledger" id="ledger"></table></div>
+  </section>
+
+  <!-- ===== Owners only: quotes ===== -->
+  <section id="v-quotes" hidden>
+    <div class="availhead">
+      <div>
+        <h2>Quotes</h2>
+        <p class="muted nm">Fill in the template, then save it as a PDF to send.</p>
+      </div>
+      <div class="btnrow">
+        <select id="quotePick" aria-label="Open a saved quote"></select>
+        <button class="btn" type="button" id="newQuoteBtn">+ New quote</button>
+      </div>
+    </div>
+    <div class="qwrap">
+      <form class="qedit" id="qform" autocomplete="off"></form>
+      <div class="qpreview-col">
+        <div class="qactions">
+          <button class="btn" type="button" id="qSave">Save quote</button>
+          <button class="btn ghost" type="button" id="qPdf">Save as PDF</button>
+          <button class="btn ghost" type="button" id="qMore" aria-expanded="false">More ▾</button>
+          <span class="status" id="qStatus"></span>
+        </div>
+        <div class="qmore" id="qMoreMenu" hidden></div>
+        <p class="hint pdfhint">In the print window, set Destination to <b>Save as PDF</b>. On iPhone: tap Share → Print, then Share again to save the PDF.</p>
+        <div class="qstage" id="qstage"><div class="qpaper" id="qpaper"></div></div>
+      </div>
+    </div>
+  </section>
 </div>
 </div>
 <div class="toast" id="toast" hidden></div>
@@ -166,5 +242,6 @@
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="app.js"></script>
+<script src="business.js"></script>
 </body>
 </html>

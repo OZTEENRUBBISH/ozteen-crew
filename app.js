@@ -12,7 +12,9 @@ if (!CFG.SUPABASE_URL || CFG.SUPABASE_URL.includes("YOUR-PROJECT") || !CFG.SUPAB
   document.body.innerHTML = '<p style="font-family:sans-serif;padding:24px">Setup isn\'t finished: paste your Supabase URL and anon key into <b>config.js</b>.</p>';
   throw new Error("Missing Supabase config");
 }
-const sb = supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
+// Tolerate a project URL pasted with /rest/v1/ on the end.
+const PROJECT_URL = CFG.SUPABASE_URL.trim().replace(/\/(rest|auth)\/v1\/?$/,"").replace(/\/+$/,"");
+const sb = supabase.createClient(PROJECT_URL, CFG.SUPABASE_ANON_KEY.trim());
 
 const SERVICES = {Rubbish:"Rubbish removal", Gardens:"Gardens & landscaping", Pressure:"Pressure washing"};
 const SC = {Rubbish:"var(--rub)", Gardens:"var(--gar)", Pressure:"var(--pw)"};
@@ -64,7 +66,7 @@ $("#signinForm").addEventListener("submit",async e=>{
   const btn=$("#si-btn"); busy(btn,true,"Signing in…");
   const {error}=await sb.auth.signInWithPassword({email:$("#si-email").value.trim(), password:$("#si-pass").value});
   busy(btn,false,"Sign in");
-  if(error) showErr("#si-error", /invalid/i.test(error.message)?"That email and password don't match. Check for typos, or reset your password.":error.message);
+  if(error) showErr("#si-error", /invalid login credentials/i.test(error.message)?"That email and password don't match. Check for typos, or reset your password.":error.message);
 });
 
 $("#forgotForm").addEventListener("submit",async e=>{
@@ -153,14 +155,17 @@ async function loadAll(){
 }
 let reloadT=null;
 function scheduleReload(){ clearTimeout(reloadT); reloadT=setTimeout(async()=>{ await loadAll(); renderAll(); },400); }
+const OWNER_TABS = ["admin","clients","accounts","quotes"];
 
 async function startApp(){
   if(S.started) return; S.started=true;
   $("#auth").hidden=true; $("#app").hidden=false;
-  $("#adminTab").hidden = S.me.role!=="owner";
+  $$("#tabs [data-owner]").forEach(b=>b.hidden = S.me.role!=="owner");
   const t=today(); S.month=new Date(t.getFullYear(),t.getMonth(),1); S.sel=key(t); S.teamStart=monday(t);
-  try{ const v=localStorage.getItem("oz-tab"); if(v && (v!=="admin"||S.me.role==="owner")) show(v); }catch(e){}
-  await loadAll(); renderAll();
+  try{ const v=localStorage.getItem("oz-tab"); if(v && $("#v-"+v) && (!OWNER_TABS.includes(v)||S.me.role==="owner")) show(v); }catch(e){}
+  await loadAll();
+  if(S.me.role==="owner" && window.BIZ) await BIZ.start();
+  renderAll();
   sb.from("profiles").update({last_seen:new Date().toISOString()}).eq("id",S.uid).then(()=>{});
   sb.channel("crew-board")
     .on("postgres_changes",{event:"*",schema:"public",table:"jobs"},scheduleReload)
@@ -187,8 +192,9 @@ const isFree = (id,k) => ["all","am","pm"].includes(availOn(id,k));
 $$("#tabs button").forEach(b=>b.addEventListener("click",()=>{ show(b.dataset.v); if(b.dataset.v==="up") renderCards(); }));
 function show(v){
   $$("#tabs button").forEach(b=>b.setAttribute("aria-selected",b.dataset.v===v));
-  ["jobs","avail","team","up","admin"].forEach(x=>$("#v-"+x).hidden = x!==v);
+  $$("#app section[id^='v-']").forEach(x=>x.hidden = x.id!=="v-"+v);
   try{ localStorage.setItem("oz-tab",v); }catch(e){}
+  if(window.BIZ && BIZ.onShow) BIZ.onShow(v);
 }
 
 /* ---------------- jobs calendar ---------------- */
@@ -407,6 +413,7 @@ function detailView(j){
       el("div",{}, el("span",{class:"tag",style:"background:"+SC[j.service]+";color:#fff",text:SERVICES[j.service]||"Job"}), el("h2",{text:j.title})),
       el("div",{style:"display:flex;gap:6px"},
         isOwner()?el("button",{class:"btn ghost",text:"Edit",onclick:()=>editJob(j)}):null,
+        isOwner()&&window.BIZ?el("button",{class:"btn ghost",text:"Add to accounts",onclick:()=>BIZ.fromCalendarJob(j)}):null,
         el("button",{class:"icon","aria-label":"Close details",text:"✕",onclick:()=>{S.openJob=null; renderCards();}}))),
     el("div",{class:"dcol"},
       el("dl",{class:"facts"},
@@ -522,7 +529,7 @@ function renderAdmin(){
 }
 
 /* ---------------- render all + buttons ---------------- */
-function renderAll(){ renderCal(); if(S.editing===null) renderPanel(); renderUpcoming(); renderWeeks(); renderTeam(); renderFilters(); renderCards(); renderAdmin(); }
+function renderAll(){ renderCal(); if(S.editing===null) renderPanel(); renderUpcoming(); renderWeeks(); renderTeam(); renderFilters(); renderCards(); renderAdmin(); if(isOwner() && window.BIZ) BIZ.render(); }
 $("#prevM").onclick=()=>{S.month=new Date(S.month.getFullYear(),S.month.getMonth()-1,1); renderCal();};
 $("#nextM").onclick=()=>{S.month=new Date(S.month.getFullYear(),S.month.getMonth()+1,1); renderCal();};
 $("#todayBtn").onclick=()=>{const t=today(); S.month=new Date(t.getFullYear(),t.getMonth(),1); S.sel=key(t); S.editing=null; renderCal(); renderPanel();};

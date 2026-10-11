@@ -10,6 +10,8 @@ What's in this folder:
 | `config.js` | Where you paste your two Supabase values (step 1.6) |
 | `CNAME` | Tells GitHub Pages to use crew.ozteen.com |
 | `setup.sql` | Creates the database, security rules and photo storage (step 1.2) |
+| `setup-business.sql` | Adds clients & leads, accounts and quotes (owners only). Run once after `setup.sql` |
+| `business.js` | The Clients & leads, Accounts and Quotes tabs |
 
 ---
 
@@ -148,3 +150,15 @@ After this, **Forgot password** on the sign-in page and **Send reset link** on T
 | Can't add jobs | Only owners can. Run the step 1.5 SQL with your exact email. |
 | crew.ozteen.com doesn't load | DNS can take up to a few hours. Check the Namecheap CNAME Host is `crew` and the Value is `yourusername.github.io`. |
 | Site loads without the latest changes | GitHub Pages takes a minute or two after each push. Refresh with Ctrl+Shift+R. |
+
+---
+
+## Owner tools: Clients & leads, Accounts, Quotes
+
+These three tabs only appear for owners. Crew can't see them, and the database blocks crew from reading the data even if they tried.
+
+**Setup (once):** Supabase → SQL Editor → New query → paste all of `setup-business.sql` → Run.
+
+- **Clients & leads:** add past customers and enquiries. Leads have a stage (New → Contacted → Quoted → Won/Lost) and a follow-up date, which turns red when it's due. "Won → client" moves a lead across. "Quote" starts a quote with their details filled in.
+- **Accounts:** one row per job: job number (leave blank for the next number), date, client, quote, tip fees, other costs, and the "Paid in cash" tick. Profit is worked out automatically. The tiles show profit for the past week, month, 3 months, year and all time. Filter by financial year, and use **Export CSV** for your accountant or tax return.
+- **Quotes:** fill in the template on the left and the preview updates on the right. **Save as PDF** saves the quote and opens the print window. Choose *Save as PDF* (on iPhone: Share → Print, then Share again). Quote numbers start at Q-1001. From **More**, you can duplicate a quote, delete it, or turn it into an Accounts entry.
